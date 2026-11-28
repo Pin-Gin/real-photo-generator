@@ -341,3 +341,14 @@ T-010/012を進めるには、ユーザーPCの**成功ワークフロー API JS
 - **回帰テスト:** `tests/unit/test_validate_t020e_workflow.py` に8ケース追加（E-03A欠落、衣装なし、ポーズなし、画像編集潜在、不一致ファイル、無効アダプター、無効ControlNet、構造整合ケース）。コンテナ環境で同等の8ケースがPASS。Git上のテストについてはユーザー実機実行未確認。
 - **品質ゲートと制限:** 詳細は [GARMENT_WEARING_GATE.md](../quality/GARMENT_WEARING_GATE.md)。構造検査PASSは**完成画像QA PASSではない**。人体の首・全身寸法維持と正しい着衣状態は視覚検証が必要。既存PowerShell直送をツールが自動的に遮断するわけではないので、今後提示する生成手順の前段階で検査を組み込み、構造FAILなら生成実行を要求しない。
 - **次の状態:** **新しい生成コマンドは未発行**。繰り返し失敗を止めた状態で、既存高品質生成の成果を保全し、全身Masterと衣装制御の構造・モデル対応を検討する。費用増加を前提としない。
+
+## 3S. T-020E / E-03B：検査組み込み済みの新規生成実行器
+
+- **依頼:** ユーザーは生成前検証をローカル実機の生成手順に組み込み、作業を進めるよう明示的に指示。
+- **実装済み:** [`scripts/run_t020e_e03b.py`](../../scripts/run_t020e_e03b.py) に、**入力ファイル検査→モデル導入確認→画像アップロード→[`validate_t020e_workflow.validate`](../../scripts/validate_t020e_workflow.py)による参照経路検査→ComfyUI `/object_info/<node>` ノード必須フィールド・選択肢検査→ローカルAPI JSON保存→`POST /prompt`（1回）**の順序を実装。いずれかの前段で失敗したら`REJECT`で送信しない。画像・モデルをGitへアップロードしない。
+- **E-03Bワークフロー:** RealVisXL SDXL + `EmptyLatentImage` + Master由来OpenPose/SDXL ControlNet + **全身MasterへのIPAdapterAdvanced** + **別系統の衣装参照IPAdapterAdvanced**。後者に既存`garment_mask.png`を`attn_mask`で接続し、衣装参照の影響領域を限定する。画像MasterをVAEEncodeする旧画像編集は使用しない。Masterは顔のみの切り抜きにしない。
+- **検証済み:** 開発コンテナの**模擬ComfyUIエンドポイント**で8ケースの単体・結合テストが成功。モデル・ノード・参照の接続検証と、衣装参照欠落時`/prompt`を送信しない拒否経路を確認。[`tests/unit/test_run_t020e_e03b.py`](../../tests/unit/test_run_t020e_e03b.py)。Git上の実装をテスト済みソースと文字単位ハッシュで照合し一致。
+- **未検証（絶対にPASSと記さない）:** ユーザーPC実機ComfyUIへの送信・SDXL IP-Adapter二重適用のロード成功・16GB VRAM消費・生成画像・人物Master全身の維持G1・正しい着用G2・衣装忠実度。二重IPAdapterは画像参照の導入候補であってVirtual Try-On専用の物理的着衣エンジンではない。**衣装が必ず正しく着られると保証しない**。
+- **再実行抑止:** モデル/参照が欠落してもジョブキューを作らず、保存済みレシートがあれば同じ出力フォルダからの重複送信を拒否。生成直前の1回の試験だけを対象。ログの`STRUCTURAL_PRECHECK_PASS`と`COMFYUI_NODE_SCHEMA_PASS`は画像QAではない。
+- **運用:** Git rootは `D:\AI\real-photo-generator\repo`（`docs/START_HERE.md`参照）。実機側で`git pull --ff-only` → `python -m unittest discover` → E-03B runner実行。ユーザーのローカルMaster・衣装参照・マスクは`D:\AI\real-photo-generator\assets\references\...`から読み取り。出力JSON／レシートは`outputs/quality-tests/T020E_E03B_20261128/`。旧FIXED要件を変更しない。
+- **次に必要な証拠:** 実機のコンソールログと画像1枚。結果をG1/G2および衣装・人物同一性で厳格に評価し、FAILの場合は同じ構成を設定調整だけで無制限に繰り返さない。
