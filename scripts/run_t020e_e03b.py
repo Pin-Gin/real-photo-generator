@@ -35,6 +35,9 @@ CN = r'SDXL\controlnet-openpose-sdxl-1.0\diffusion_pytorch_model.safetensors'
 IPA = 'ip-adapter-plus_sdxl_vit-h.safetensors'
 CLIPVISION = 'CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors'
 PREFIX = 'T020E_E03B_SDXL_DualReference_Worn'
+# E-03B failed the user's image acceptance gates G1 and G2 on 2026-11-28.
+# Preserve the experimental graph for audit, but prevent further image uploads/queues.
+E03B_QA_REJECTED = True
 
 POSITIVE = (
     'High-quality semi-realistic 3D CGI to photorealistic portrait of one adult woman. '
@@ -191,6 +194,9 @@ def main(argv=None):
     p.add_argument('--output', type=Path, required=True, help='Folder for JSON and execution receipt (not Git)')
     p.add_argument('--dry-run', action='store_true', help='Check and save prompt, but DO NOT queue')
     args=p.parse_args(argv)
+    if E03B_QA_REJECTED:
+        print('REJECT: E03B_KNOWN_IMAGE_QA_FAIL: G1 Master identity/body and G2 requested garment wearing failed. Repeated generation disabled.', file=sys.stderr)
+        return 2
     try:
         validate_inputs(args.master,args.garment,args.mask)
         ensure_models()
