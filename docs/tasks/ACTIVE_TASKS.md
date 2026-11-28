@@ -183,3 +183,25 @@ T-010/012を進めるには、ユーザーPCの**成功ワークフロー API JS
 - **次のチェック:** 上記の主要ノードについて `/object_info/<node>` の required/optional 入力および出力型を取得して、`fixA` の参照接続との適合性を確認。マスク対象は元衣装のある上半身・腰回りを中心にし、顔・髪・手・脚・背景を保護する方針。**ユーザーの画像にない領域をAIが勝手に作り込まない**。
 - **段階:** T-020C／ノード一覧の存在確認=完了、ノード接続仕様確認=未実施、実機マスク生成・衣装置換=未実施。結果画像とユーザーQAなしにPASSとしない。
 
+
+## 3G. T-020C 入出力仕様確認完了（次は局所編集A/B）
+
+**状態:** ノード入出力インターフェースの存在・型確認＝DONE。**マスク実体と実機生成は未実施、T-020C QA未判定**。
+
+2026-11-28、ユーザーComfyUIの `GET /object_info/<node>` 実行結果（直接提示）：
+- `LoadImageMask`: required `image, channel`; output `MASK`。
+- `SetLatentNoiseMask`: required `samples, mask`; output `LATENT`。
+- `VAEEncodeForInpaint`: required `pixels, vae, mask, grow_mask_by`; output `LATENT`。
+- `InpaintModelConditioning`: required `positive, negative, vae, pixels, mask, noise_mask`; outputs `CONDITIONING, CONDITIONING, LATENT`。
+- `ImageCompositeMasked`: required `destination, source, x, y, resize_source`; optional `mask`; output `IMAGE`。
+- `GrowMask`: required `mask, expand, tapered_corners`; output `MASK`。
+- `FeatherMask`: required `mask, left, top, right, bottom`; output `MASK`。
+- `MaskPreview`: required `mask`; output `MASK`。
+- `SAM3_Detect`: required `model, image, threshold, refine_iterations, individual_masks`; optional `conditioning, bboxes, positive_coords, negative_coords`; outputs `MASK, BOUNDING_BOX`。
+- `SAM3_TrackToMask`: required `track_data, object_indices`; output `MASK`。
+
+**初期実験案（まだ未実行）:** `LoadImageMask`（白＝編集、黒＝保護のマスクを指定画像と同寸で用意） → `SetLatentNoiseMask`（従来の `VAEEncode` 潜在出力と接続） → 既存 `KSampler.latent_image` に接続。Qwenの `TextEncodeQwenImageEditPlus.image1` は元Master、`image2` は衣装参照のまま保持。実装は元JSONのコピーで行う。**Qwen編集モデルで有効に作用するかは画像生成で判定**。
+
+**重要:** 手動マスクの輪郭が衣装だけでなく肌・髪・背景を広く覆うと、人物維持の比較が無効になる。まず元衣装のトップス／ショートパンツ領域に合わせてマスクを作り、実際のマスク画像を目視確認する。元の服を取り除く目的と、透け素材の再現およびSFW維持の関係は別評価。生成成功とPASS判定を混同しない。
+
+次はマスクPNGの同寸・配色・位置確認、次にローカルで保存済みのT-020A API JSONの複製へマスクノード追加。その後、出力をT-020A/Bと比較。
