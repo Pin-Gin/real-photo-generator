@@ -42,3 +42,12 @@
 - 原因は**未確定**。観察された画像の破綻と、モデルの内部処理を同一視しない。
 
 **次の現実的作業:** E-01の読み取り確認。調査が完了するまでは新規生成ワークフローや設定の変更を既成事実にしない。
+
+## T-020E 生成前の構造検査（2026-11-28追加）
+
+- **実装:** [`scripts/validate_t020e_workflow.py`](../../scripts/validate_t020e_workflow.py)（Python標準ライブラリのみ）。ComfyUI API形式のJSONと2つのLoadImageファイル名を受け取り、違反時は`REJECT`／終了コード2。条件合格でも`STRUCTURAL_PRECHECK_PASS (NOT IMAGE QA PASS)`と表示する。
+- **事前に拒否するもの:** 人物Masterの同一性参照経路の欠落、衣装画像参照の欠落、Master由来のOpenPose→ControlNet構造経路の欠落、空の潜在ではない編集方式、アダプター重み0、ControlNet強度0。**E-03Aの「ポーズだけMaster、衣装は文章だけ」構成は拒否対象**。
+- **試験:** [`tests/unit/test_validate_t020e_workflow.py`](../../tests/unit/test_validate_t020e_workflow.py) の8テスト。開発環境では`python -m unittest discover -s tests/unit -p 'test_validate_t020e_workflow.py' -v`で検証。今回のコンテナ内で同等の8ケース合格を確認済みだが、ユーザーPC・ComfyUI実機での実行は未確認。
+- **適用規則:** 以降、T-020Eの新規API JSON生成案は、提案前に構造検査とテストの結果を照合。構造FAILならユーザーに生成を依頼しない。既存の成功設定を無断変更しない。
+- **適用範囲の限界:** このチェックは**参照画像が条件付けに接続されていること**を検証するだけ。Masterの全身比率が本当に保持されるか、衣装が本当に着用されるか、透明マネキンが転写されないか、モデル重みがComfyUIで正しくロードできるかは判定できない。G1/G2の最終承認は実画像QAが必要。誤って「PASS＝衣装問題解決」と扱わない。
+- **現在の運用上の限界:** 過去に渡した任意PowerShellから`/prompt`へ直接POSTすれば検査を迂回できる。**現時点でAPI呼び出し自体が自動的にブロックされるわけではない**。今後提示する生成手順に検査の実行を必須として組み込み、検査を通らないものは送信しない。
