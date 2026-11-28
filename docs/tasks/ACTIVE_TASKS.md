@@ -359,3 +359,12 @@ T-010/012を進めるには、ユーザーPCの**成功ワークフロー API JS
 - **コードを再確認:** 実行器は `validate_inputs`, `ensure_models`, `upload_image`, `validate`, `ensure_nodes`, JSON保存, `POST /prompt` の順に実行し、各段階で終了コード2を返す場合がある。ラッパー例外だけを見て、マスク・ファイル・モデル・ノード等のどれが失敗したかを断定しない。
 - **次の対処:** 同じ引数で`--dry-run`を加え、**画像生成なし・ComfyUIキュー送信なし**でstdout/stderrを`T020E_E03B_diagnostic_no_generation.log`へ保存。これにより`REJECT:`、`Traceback`、`COMFYUI_NODE_SCHEMA_PASS`などの最終到達地点を確認する。dry-run時も入力画像アップロードはあり得るため「完全に副作用なし」とは扱わない。すでに生成ジョブが登録されたか確認するにはreceipt／ComfyUI履歴の確認が別途必要。
 - **作業停止ゲート:** 原因が確定するまで`/prompt`への再送信を行わない。根拠のないモデル切替や画像生成再試行は禁止。G1全身Master維持／G2衣装を実際に着せる条件は変更しない。
+
+## 3U. E-03B import失敗：埋め込みPythonのモジュール検索パス対策
+
+- **今回の実機エラー（2026-11-28）:** `ModuleNotFoundError: No module named 'validate_t020e_workflow'`、発生箇所 `scripts/run_t020e_e03b.py` 20行目、`EXIT_CODE=1`。`E03B_PREFLIGHT_OR_SUBMISSION_FAILED`はこれを包んだPowerShell例外。**Python import段階で停止したため、今回のdry-runでは画像生成キュー登録まで到達していない**。
+- **Git上の実体確認:** `main`に`scripts/validate_t020e_workflow.py`、`scripts/run_t020e_e03b.py`の両方が存在することをfetchで確認。**ユーザーPCのローカルファイル存在は未確認**。
+- **原因候補:** Windows ComfyUI `python_embeded`の`python*._pth`隔離パス等により、スクリプトの隣接フォルダが`sys.path`へ自動登録されないケース。またはローカル検証モジュール未配置。通常のPythonと`python -I`では同じフォルダのimport可否が異なることを開発環境で再現。実機の`sys.path`とファイル有無は未取得のため、根本原因の片方だけに断定しない。
+- **実装修正:** `scripts/run_t020e_e03b.py`に起動時の隣接`validate_t020e_workflow.py`存在検査、モジュール所在ディレクトリの`sys.path`明示登録を実装。ローカルファイルが欠落していれば`REJECT: VALIDATOR_FILE_MISSING`、終了コード2で停止。`tests/unit/test_run_t020e_e03b.py`に`-I -s`隔離実行でのimport成功、欠落時の明示拒否をテスト追加。
+- **検証状況:** 隔離実行環境を模した小型プログラムで、修正前の`ModuleNotFoundError`と修正後のimport成功・モジュール欠落時の`REJECT`終了コード2を確認済み。**ユーザー実機での修正版runner／全ユニットテスト／画像生成はまだ未実施**。この時点で実機修正完了・画像QA PASSとは扱わない。
+- **次の作業:** ユーザーPCで`git pull --ff-only`し、`scripts/validate_t020e_workflow.py`の存在、修正版runnerの`-I -s --help`、関連ユニットテストを確認。成功したら`--dry-run`による生成なしのAPI検証を行う。後続生成へ進める場合も、dry-run不合格時は`/prompt`送信禁止。出力エラーは共通ラッパーだけでなく先頭`REJECT`や`Traceback`を保存する。
