@@ -4,6 +4,8 @@ import json
 import re
 import sys
 import tempfile
+import subprocess
+import shutil
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -55,6 +57,26 @@ class TestE03BSubmission(unittest.TestCase):
             Image.new('L',(600,1000)).save(c)
             with self.assertRaisesRegex(RuntimeError,'MASK_SIZE_MISMATCH'):
                 run.validate_inputs(a,b,c)
+
+    def test_isolated_python_imports_sibling_validator(self):
+        # Reproduces the isolated sys.path behavior of ComfyUI embedded Python.
+        runner = Path(__file__).resolve().parents[2] / 'scripts' / 'run_t020e_e03b.py'
+        proc = subprocess.run([sys.executable, '-I', '-s', str(runner), '--help'],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              text=True, timeout=30)
+        self.assertEqual(proc.returncode, 0, msg=proc.stdout + proc.stderr)
+        self.assertIn('--dry-run', proc.stdout)
+
+    def test_missing_validator_is_explicitly_rejected(self):
+        runner = Path(__file__).resolve().parents[2] / 'scripts' / 'run_t020e_e03b.py'
+        with tempfile.TemporaryDirectory() as t:
+            destination = Path(t) / 'run_t020e_e03b.py'
+            shutil.copyfile(runner, destination)
+            proc = subprocess.run([sys.executable, '-I', '-s', str(destination), '--help'],
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  text=True, timeout=30)
+            self.assertEqual(proc.returncode, 2, msg=proc.stdout + proc.stderr)
+            self.assertIn('REJECT: VALIDATOR_FILE_MISSING', proc.stderr)
 
     def test_mock_endpoint_receives_one_prompt_after_preflight(self):
         with tempfile.TemporaryDirectory() as t:
