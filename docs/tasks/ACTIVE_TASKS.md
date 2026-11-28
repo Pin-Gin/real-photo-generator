@@ -246,3 +246,15 @@ T-010/012を進めるには、ユーザーPCの**成功ワークフロー API JS
 - **今回の確認:** T-020Dで `EmptyLatentImage` を使っただけでは実着用・身体維持を満たせないことが実画像で確認済み。前回の「顔と髪だけ切り抜く」提案は撤回。元MasterへのInpaintを再開しない。
 - **現在位置:** T-020E / **E-01 モデル・ノード棚卸し（ACTIVE、ユーザーPCの結果待ち）**。LoRA、ControlNet、diffusion_models、対応ノードの認識を確認してから、実装可能性と条件に基づきE-02のワークフロー候補を選ぶ。
 - **注意:** 仮に衣装専用のVirtual Try-Onワークフローが存在しても、元画像を編集するタイプは今回の「1から生成」条件に適合するとは扱わない。ローカル導入とライセンス・VRAM・モデル互換性も未確認。
+
+## 3M. T-020E / E-01モデル・ノード棚卸し結果（実機）
+
+- **入力:** 2026-11-28ユーザー実機でComfyUI `/models` と `/object_info` を照会した結果。
+- `loras`: 合計2件。条件に一致するのは `Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors` だけ。衣装専用LoRAは名称から確認できない（該当しない1件の名称は未取得）。
+- `controlnet`: 合計1件、`SDXL\controlnet-openpose-sdxl-1.0\diffusion_pytorch_model.safetensors`。**SDXL OpenPose用**でありQwen Editへ直接流用できると判断しない。
+- `diffusion_models`: 合計7件、条件に一致したモデル `qwen_image_2.1_int8_convrot.safetensors`、`qwen_image_edit_2511_int8_convrot.safetensors`。残り5件の詳細未取得。
+- `checkpoints`: 合計4件だがフィルタ条件に該当せず名称未開示。**SDXLが含まれるかはユーザーの今回の一覧だけでは未確定**（過去会話でRealVisXL/Juggernaut認識履歴あり、現在の実機にあるかは一覧の再取得が必要）。
+- **ノード:** `ControlNetLoader`, `ControlNetApplyAdvanced`, `OpenposePreprocessor`, `DensePosePreprocessor`, `DepthAnythingPreprocessor`, `BriaVirtualTryOn`, `KlingTryOnNode` 等を認識。
+- **重要な制約:** `BriaVirtualTryOn` は外部API利用のComfyUIパートナーノードと公開資料に記載。ノードが存在してもローカル無料推論・対応モデルがあることを意味しない。Klingもローカルモデルとしてカウントしない。現状、ローカル衣装専用try-onパイプラインの導入は確認できていない。
+- **次の段階:** **E-02＝候補構成の適合検査（ACTIVE）**。まずcheckpoint実名と`ControlNetLoader`、`ControlNetApplyAdvanced`、`OpenposePreprocessor`、`CheckpointLoaderSimple` の入出力仕様を取得。SDXLによる新規生成＋骨格制御を「身体形状テスト」の候補として評価する。**OpenPoseだけではMasterの体型や衣装の物理的着用が保証できない**。衣装画像参照は別の独立した技術ゲート。
+- **不変のQA:** [GARMENT_WEARING_GATE.md](../quality/GARMENT_WEARING_GATE.md) に従い、(G1) 首・肩・胸郭・全身身体比率の維持、(G2) 布が実際に着用された物理関係の成立を**同時必須**とする。過去のT-020D失敗画像を成功基準に昇格させない。
