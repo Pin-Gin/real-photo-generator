@@ -17,6 +17,16 @@ import uuid
 
 from PIL import Image
 
+# The Windows ComfyUI embedded interpreter may not include this script's
+# directory on sys.path (python*._pth isolated path configuration).
+# Resolve the sibling validator explicitly rather than relying on sys.path.
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_VALIDATOR_FILE = _SCRIPT_DIR / 'validate_t020e_workflow.py'
+if not _VALIDATOR_FILE.is_file():
+    print('REJECT: VALIDATOR_FILE_MISSING: ' + str(_VALIDATOR_FILE), file=sys.stderr)
+    sys.exit(2)
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
 from validate_t020e_workflow import validate
 
 API = 'http://127.0.0.1:8188'
