@@ -78,67 +78,19 @@ class TestE03BSubmission(unittest.TestCase):
             self.assertEqual(proc.returncode, 2, msg=proc.stdout + proc.stderr)
             self.assertIn('REJECT: VALIDATOR_FILE_MISSING', proc.stderr)
 
-    def test_mock_endpoint_receives_one_prompt_after_preflight(self):
-        with tempfile.TemporaryDirectory() as t:
-            tmp=Path(t)
-            a,b,c=[tmp/x for x in ('master.png','garment.jpg','mask.png')]
-            Image.new('RGB',(752,1392), '#bdbdbd').save(a)
-            Image.new('RGB',(410,700),'#9988bb').save(b)
-            m=Image.new('RGB',(752,1392),'black')
-            ImageDraw.Draw(m).rectangle((200,360,540,950),fill='white')
-            m.save(c)
-            uploaded={}
-            posted=[]
-            def fake_request(path,data=None,content_type=None):
-                if path=='/upload/image':
-                    match=re.search(rb'filename="([^"]+)"',data)
-                    assert match, 'Missing multipart filename'
-                    fname=match.group(1).decode('utf-8')
-                    role=fname.split('_')[2]
-                    uploaded[role]=fname
-                    return json.dumps({'name':fname,'type':'input','subfolder':''}).encode()
-                if path=='/prompt':
-                    prompt=json.loads(data)
-                    posted.append(prompt)
-                    return b'{"prompt_id":"mock-prompt-id"}'
-                raise AssertionError('Unknown endpoint: '+path)
-            with patch.object(run, 'ensure_models'),patch.object(run, 'ensure_nodes'),patch.object(run, 'request_bytes',side_effect=fake_request):
-                rc=run.main(['--master',str(a),'--garment',str(b),'--mask',str(c),'--output',str(tmp/'output')])
-            self.assertEqual(rc,0)
-            self.assertEqual(len(uploaded),3)
-            self.assertEqual(len(posted),1)
-            w=posted[0]['prompt']
-            self.assertEqual(validate(w,uploaded['master'],uploaded['garment']),[])
-            self.assertEqual(w['12']['inputs']['image'],uploaded['mask'])
-            self.assertEqual(w['13']['inputs']['attn_mask'],['12',0])
-            self.assertEqual(w['17']['inputs']['filename_prefix'],run.PREFIX)
-            self.assertTrue((tmp/'output'/'T020E_E03B_dual_reference_api_prompt.json').exists())
+    def test_known_failed_e03b_never_queues_or_uploads(self):
+        # QA FAIL must block BEFORE network calls, regardless of valid input paths.
+        with patch.object(run, 'request_bytes', side_effect=AssertionError('network accessed')):
+            rc=run.main(['--master','master.png','--garment','garment.jpg',
+                         '--mask','mask.png','--output','outputs'])
+        self.assertEqual(rc,2)
 
-    def test_preflight_rejection_cannot_queue(self):
-        with tempfile.TemporaryDirectory() as t:
-            tmp=Path(t)
-            a,b,c=[tmp/x for x in ('master.png','garment.jpg','mask.png')]
-            Image.new('RGB',(752,1392),'#aaaaaa').save(a)
-            Image.new('RGB',(300,600),'#aabbcc').save(b)
-            mask=Image.new('RGB',(752,1392),'black')
-            ImageDraw.Draw(mask).rectangle((200,300,450,900),fill='white')
-            mask.save(c)
-            posts=[]
-            original=run.build_workflow
-            def broken_builder(m,g,k):
-                w=original(m,g,k)
-                w['15']['inputs']['model']=['11',0]
-                return w
-            def fake_request(path,data=None,content_type=None):
-                if path=='/upload/image':
-                    match=re.search(rb'filename="([^"]+)"',data)
-                    return json.dumps({'name':match.group(1).decode()}).encode()
-                posts.append(path)
-                return b'{"prompt_id":"oops"}'
-            with patch.object(run,'ensure_models'),patch.object(run,'build_workflow',side_effect=broken_builder),patch.object(run,'request_bytes',side_effect=fake_request):
-                rc=run.main(['--master',str(a),'--garment',str(b),'--mask',str(c),'--output',str(tmp/'out')])
-            self.assertEqual(rc,2)
-            self.assertNotIn('/prompt',posts)
+    def test_known_failed_e03b_dry_run_also_rejected(self):
+        # Even dry-run should not upload images for this retired experiment.
+        with patch.object(run, 'request_bytes', side_effect=AssertionError('network accessed')):
+            rc=run.main(['--master','master.png','--garment','garment.jpg',
+                         '--mask','mask.png','--output','outputs','--dry-run'])
+        self.assertEqual(rc,2)
 
 
 if __name__=='__main__':
