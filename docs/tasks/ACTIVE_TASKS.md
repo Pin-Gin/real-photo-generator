@@ -289,3 +289,23 @@ T-010/012を進めるには、ユーザーPCの**成功ワークフロー API JS
 **次:** 読み取り専用で `GET /models/ipadapter`, `GET /models/clip_vision`、必要なら `/models/photomaker` と `/object_info/IPAdapterUnifiedLoader`, `/object_info/IPAdapterAdvanced`, `/object_info/IPAdapterRegionalConditioning`, `/object_info/CLIPVisionLoader` の入出力を確認。その結果を根拠に候補構成を絞る。重みのダウンロード・ノード追加・生成試験はまだ行わない。
 
 **変更不可の品質ゲート:** [GARMENT_WEARING_GATE.md](../quality/GARMENT_WEARING_GATE.md) の G1（首・体幹・四肢を含むMaster全身維持）と G2（服が物理的に着用された状態）を両方満たす必要がある。衣装参照に似た模様の重ね描き、元衣装の透過、マネキン構造の転写はFAIL。
+
+## 3P. T-020E / E-02：SDXL IP-Adapterモデル重みの適合確認
+
+**ユーザー実機照会結果（2026-11-28）**
+- `/models/ipadapter`：1件 `ip-adapter-plus_sdxl_vit-h.safetensors`
+- `/models/clip_vision`：1件 `CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors`
+- `/models/photomaker`：`COUNT=1`だがモデル名が空行のため重み実在確認不能。PhotoMakerは試験候補にしない。
+- `IPAdapterUnifiedLoader`: required `model,preset`; optional `ipadapter`; output `MODEL,IPADAPTER`
+- `IPAdapterAdvanced`: required `model,ipadapter,image,weight,weight_type,combine_embeds,start_at,end_at,embeds_scaling`; optional `image_negative,attn_mask,clip_vision`; output `MODEL`
+- `IPAdapterRegionalConditioning`: required `image,image_weight,prompt_weight,weight_type,start_at,end_at`; optional `mask,positive,negative`; outputs `IPADAPTER_PARAMS,CONDITIONING,CONDITIONING`
+- `IPAdapterModelLoader`: required `ipadapter_file`; output `IPADAPTER`。
+- `CLIPVisionLoader`: required `clip_name`; output `CLIP_VISION`。
+- `PhotoMakerLoader`: required `photomaker_model_name`; output `PHOTOMAKER`。
+
+**評価:** 導入済みIP-Adapter Plus SDXL ViT-HとCLIP ViT-Hのファイル名は公式cubiq/ComfyUI_IPAdapter_plusの対応表と一致。**SDXL画像参照パイプラインの導入条件が揃った**。ロード成功・モデル互換の実行結果・人物維持・服の実際の着用は**まだ未確認**。
+
+**重要:** IP-Adapter Plusは一般的な画像条件付けであり、衣装専用の3D/布着用制御ではない。特に透明マネキンに衣装が着いている参照画像を直接条件化すると、マネキン材質・身体形状が混入する懸念があり、T-020D総合FAILの観察を踏まえ**未検証のまま完成ワークフローに採用しない**。通常のVirtual Try-OnではMasterを編集する方式もあるため新規潜在生成条件との適合に注意。
+
+**E-03への引継ぎ：** まず、**空の潜在画像＋RealVisXL＋SDXL OpenPose（Masterから姿勢のみ抽出）＋衣装の文章説明**で、G1に関係する身体解剖の自然さとG2の「布を着用している」状態がそもそも成立するか、最小限の診断テストを実施。その出力は**Master同一性と衣装画像の正確な再現を検証していない**ため総合PASSにできない。診断結果が自然なら、Master全身参照と衣装画像参照の独立制御およびマネキン転写抑止を追加試験する。1回に変更する要素を限定する。検証ではマスクや元画像VAEEncodeの局所編集を使わない。
+
