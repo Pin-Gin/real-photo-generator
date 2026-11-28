@@ -227,6 +227,5 @@ def main(argv=None):
         print('REJECT: '+str(exc),file=sys.stderr)
         return 2
 
-
 if __name__=='__main__':
     sys.exit(main())
