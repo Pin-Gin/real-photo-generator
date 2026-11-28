@@ -258,3 +258,25 @@ T-010/012を進めるには、ユーザーPCの**成功ワークフロー API JS
 - **重要な制約:** `BriaVirtualTryOn` は外部API利用のComfyUIパートナーノードと公開資料に記載。ノードが存在してもローカル無料推論・対応モデルがあることを意味しない。Klingもローカルモデルとしてカウントしない。現状、ローカル衣装専用try-onパイプラインの導入は確認できていない。
 - **次の段階:** **E-02＝候補構成の適合検査（ACTIVE）**。まずcheckpoint実名と`ControlNetLoader`、`ControlNetApplyAdvanced`、`OpenposePreprocessor`、`CheckpointLoaderSimple` の入出力仕様を取得。SDXLによる新規生成＋骨格制御を「身体形状テスト」の候補として評価する。**OpenPoseだけではMasterの体型や衣装の物理的着用が保証できない**。衣装画像参照は別の独立した技術ゲート。
 - **不変のQA:** [GARMENT_WEARING_GATE.md](../quality/GARMENT_WEARING_GATE.md) に従い、(G1) 首・肩・胸郭・全身身体比率の維持、(G2) 布が実際に着用された物理関係の成立を**同時必須**とする。過去のT-020D失敗画像を成功基準に昇格させない。
+
+## 3N. T-020E E-02：SDXLモデル・ノード接続の実機確認
+
+**状態：E-02 一部完了（モデル・ノード名確認）、参照分離方式の適合確認は継続中。生成・G1/G2 QAは未実施。**
+
+ユーザーの実機結果（2026-11-28）：
+
+- `checkpoints`（4件）：`Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors`、`RealVisXL_V5.0_fp16.safetensors`、`sd_xl_base_1.0.safetensors`、`waiIllustriousSDXL_v170.safetensors`。
+- `loras`（2件）：`Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors`、`local-rag\rendering\matte_dimensional_anime_v1.safetensors`。衣装専用LoRAの導入は名前上は未確認。
+- `diffusion_models`（7件）：`flux-2-klein-base-4b-fp8.safetensors`、`flux3-image-klein-base-int8-convrot.safetensors`、`flux3-image-klein-int8-convrot.safetensors`、`omnigen2_fp16.safetensors`、`qwen_image_2.1_int8_convrot.safetensors`、`qwen_image_edit_2511_int8_convrot.safetensors`、`z_image_turbo_bf16.safetensors`。
+- `CheckpointLoaderSimple`: required `ckpt_name`; outputs MODEL, CLIP, VAE。
+- `ControlNetLoader`: required `control_net_name`; output CONTROL_NET。
+- `ControlNetApplyAdvanced`: required `positive,negative,control_net,image,strength,start_percent,end_percent`; outputs CONDITIONING×2。
+- `OpenposePreprocessor`: required `image`; outputs IMAGE,POSE_KEYPOINT。
+- `EmptyLatentImage`: required `width,height,batch_size`; output LATENT。
+- `CLIPTextEncode`: required `text,clip`; output CONDITIONING。
+- 先に確認した `controlnet` はSDXL OpenPose用1件。
+
+**結論と制限:** RealVisXL、Juggernaut、SDXLベース＋SDXL OpenPose ControlNetによる**新規生成と2D姿勢誘導**の接続候補は揃っている。ただしOpenPoseはMasterの首・胸郭・体積・全身寸法の固定を保証しない。衣装参照画像から**衣服の着用構造だけを抽出して実際に着せる**ためのローカルモデル／参照アダプターもまだ確認できていない。これを満たしたと誤記しない。
+
+**次の読取専用の調査:** `/object_info` で `IPAdapter`, `InstantID`, `PuLID`, `PhotoMaker`, `Reference`, `VirtualTryOn`, `garment`, `cloth` 関連ノードの実在・種類と、`/models/clip_vision`, `/models/ipadapter` を確認する。外部APIノードはローカル推論候補から除外。検証に使うノードとモデルを確定してから実画像の局所QAを開始し、G1・G2の両方を必須とする。
+
