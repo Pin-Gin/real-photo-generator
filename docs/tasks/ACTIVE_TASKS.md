@@ -352,3 +352,10 @@ T-010/012を進めるには、ユーザーPCの**成功ワークフロー API JS
 - **再実行抑止:** モデル/参照が欠落してもジョブキューを作らず、保存済みレシートがあれば同じ出力フォルダからの重複送信を拒否。生成直前の1回の試験だけを対象。ログの`STRUCTURAL_PRECHECK_PASS`と`COMFYUI_NODE_SCHEMA_PASS`は画像QAではない。
 - **運用:** Git rootは `D:\AI\real-photo-generator\repo`（`docs/START_HERE.md`参照）。実機側で`git pull --ff-only` → `python -m unittest discover` → E-03B runner実行。ユーザーのローカルMaster・衣装参照・マスクは`D:\AI\real-photo-generator\assets\references\...`から読み取り。出力JSON／レシートは`outputs/quality-tests/T020E_E03B_20261128/`。旧FIXED要件を変更しない。
 - **次に必要な証拠:** 実機のコンソールログと画像1枚。結果をG1/G2および衣装・人物同一性で厳格に評価し、FAILの場合は同じ構成を設定調整だけで無制限に繰り返さない。
+
+## 3T. E-03B 実機終了コードの診断（画像生成を停止）
+
+- **ユーザー実機の結果:** PowerShell `E03B_PREFLIGHT_OR_SUBMISSION_FAILED`。これは末尾の`$LASTEXITCODE`に反応する**共通ラッパー例外**であり、`run_t020e_e03b.py`が表示したはずの`REJECT: ...`やPython例外が提示されていない。**原因未特定、生成されたか否かも今回の出力だけでは確定不能**。画像QAは未実施。
+- **コードを再確認:** 実行器は `validate_inputs`, `ensure_models`, `upload_image`, `validate`, `ensure_nodes`, JSON保存, `POST /prompt` の順に実行し、各段階で終了コード2を返す場合がある。ラッパー例外だけを見て、マスク・ファイル・モデル・ノード等のどれが失敗したかを断定しない。
+- **次の対処:** 同じ引数で`--dry-run`を加え、**画像生成なし・ComfyUIキュー送信なし**でstdout/stderrを`T020E_E03B_diagnostic_no_generation.log`へ保存。これにより`REJECT:`、`Traceback`、`COMFYUI_NODE_SCHEMA_PASS`などの最終到達地点を確認する。dry-run時も入力画像アップロードはあり得るため「完全に副作用なし」とは扱わない。すでに生成ジョブが登録されたか確認するにはreceipt／ComfyUI履歴の確認が別途必要。
+- **作業停止ゲート:** 原因が確定するまで`/prompt`への再送信を行わない。根拠のないモデル切替や画像生成再試行は禁止。G1全身Master維持／G2衣装を実際に着せる条件は変更しない。
