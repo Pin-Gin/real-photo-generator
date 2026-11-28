@@ -1,5 +1,8 @@
 """Stdlib regression tests for T-020E's previously missed structural defects."""
 import unittest
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts'))
 from validate_t020e_workflow import validate
 
 MASTER = 'master_candidate_01.png'
