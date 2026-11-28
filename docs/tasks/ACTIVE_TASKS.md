@@ -174,3 +174,12 @@ T-010/012を進めるには、ユーザーPCの**成功ワークフロー API JS
 - **次段階:** **T-020C：衣装領域マスクを使用する局所編集の適用可否・ノード構成調査（ACTIVE）**。元の成功fixA JSONを必ず保全し、マスクは衣装領域に限定、人物の顔・髪・四肢・背景は原則保護する。ComfyUI `/object_info` から利用できるinpaint・maskノードを確認してから新規ワークフローを作る。実画像生成・PASS判定は未実施。
 - **作業境界:** T-020A/Bの失敗ワークフローを成功基準に昇格しない。顔・体型維持と衣装変更を別QA。人物の新規属性や露出を勝手に補完しない。
 
+
+## 3F. T-020C ノード存在確認（ユーザー実機 /object_info）
+
+- **確認入力:** ユーザーが実機ComfyUI `GET /object_info` から抽出したノード名一覧（2026-11-28）。
+- **存在確認済み:** `LoadImageMask`, `ImageToMask`, `GrowMask`, `FeatherMask`, `MaskPreview`, `SetLatentNoiseMask`, `VAEEncodeForInpaint`, `InpaintModelConditioning`, `ImageCompositeMasked`, `LatentCompositeMasked`, `SAM3_Detect`, `SAM3_TrackToMask`, `ConditioningSetMask` 等。
+- **判断:** マスク作成・潜在マスク・インペイントに関連するノード群が登録されているので**T-020Cは技術的調査を継続可能**。登録名があるだけではQwen Image Edit 2511との互換性・マスクの実効性・SAM3の必要モデル存在は未確認。
+- **次のチェック:** 上記の主要ノードについて `/object_info/<node>` の required/optional 入力および出力型を取得して、`fixA` の参照接続との適合性を確認。マスク対象は元衣装のある上半身・腰回りを中心にし、顔・髪・手・脚・背景を保護する方針。**ユーザーの画像にない領域をAIが勝手に作り込まない**。
+- **段階:** T-020C／ノード一覧の存在確認=完了、ノード接続仕様確認=未実施、実機マスク生成・衣装置換=未実施。結果画像とユーザーQAなしにPASSとしない。
+
