@@ -280,3 +280,12 @@ T-010/012を進めるには、ユーザーPCの**成功ワークフロー API JS
 
 **次の読取専用の調査:** `/object_info` で `IPAdapter`, `InstantID`, `PuLID`, `PhotoMaker`, `Reference`, `VirtualTryOn`, `garment`, `cloth` 関連ノードの実在・種類と、`/models/clip_vision`, `/models/ipadapter` を確認する。外部APIノードはローカル推論候補から除外。検証に使うノードとモデルを確定してから実画像の局所QAを開始し、G1・G2の両方を必須とする。
 
+## 3O. T-020E / E-02：参照アダプター系ノード確認（実機）
+
+**実機調査結果（ユーザー提示、2026-11-28）:** `REFERENCE_NODES COUNT=76`。主に `IPAdapter`, `IPAdapterAdvanced`, `IPAdapterUnifiedLoader`, `IPAdapterUnifiedLoaderCommunity`, `IPAdapterUnifiedLoaderFaceID`, `IPAdapterModelLoader`, `IPAdapterRegionalConditioning`, `IPAdapterPreciseComposition`, `IPAdapterPreciseStyleTransfer`, `IPAdapterFaceID`, `IPAdapterInsightFaceLoader`, `PhotoMakerLoader`, `PhotoMakerEncode` の名称を確認。外部API系 `BriaVirtualTryOn`, `KlingTryOnNode` などはローカル実行モデル導入の証拠ではない。
+
+**判定:** アダプターノードの導入は**確認済み**。必要なIP-Adapterモデル、CLIP Visionモデル、FaceID/PhotoMaker重みの存在とSDXLモデル適合性、衣装画像からの着用構造生成能力は**未確認**。直近のユーザー提供出力には `MODEL: clip_vision` 等のファイル名・件数が含まれていないため、存在を推測して埋めない。
+
+**次:** 読み取り専用で `GET /models/ipadapter`, `GET /models/clip_vision`、必要なら `/models/photomaker` と `/object_info/IPAdapterUnifiedLoader`, `/object_info/IPAdapterAdvanced`, `/object_info/IPAdapterRegionalConditioning`, `/object_info/CLIPVisionLoader` の入出力を確認。その結果を根拠に候補構成を絞る。重みのダウンロード・ノード追加・生成試験はまだ行わない。
+
+**変更不可の品質ゲート:** [GARMENT_WEARING_GATE.md](../quality/GARMENT_WEARING_GATE.md) の G1（首・体幹・四肢を含むMaster全身維持）と G2（服が物理的に着用された状態）を両方満たす必要がある。衣装参照に似た模様の重ね描き、元衣装の透過、マネキン構造の転写はFAIL。
